@@ -1,25 +1,17 @@
 import ast
-from dataclasses import dataclass
-from logging import getLogger
+import json
+import logging
+import time
 
 import pandas as pd
 import streamlit as st
-from langchain_experimental.sql import SQLDatabaseChain
 from langchain_openai.chat_models.base import ChatOpenAI
 from streamlit.delta_generator import DeltaGenerator
 
 from . import MSG_NO_ANSWER, PROMPT
 
-logger = getLogger(__name__)
 
-
-@dataclass
-class StAppParams:
-    prompt_chain: SQLDatabaseChain
-
-
-def run_streamlit(params: StAppParams) -> None:
-    _init_session()
+def run_streamlit() -> None:
     st.set_page_config(
         page_title="LangChain Vault Demo",
         page_icon=":guardsman:",
@@ -27,25 +19,9 @@ def run_streamlit(params: StAppParams) -> None:
     )
 
     chat_tab, details_tab, secrets_tab = st.tabs(["Chat", "Details", "Secrets"])
-    _set_chat_tab(chat_tab, params)
-    _set_details_tab(details_tab, params)
+    _set_chat_tab(chat_tab)
+    _set_details_tab(details_tab)
     _set_secrets_tab(secrets_tab)
-
-
-def _init_session() -> None:
-    if "visibility" not in st.session_state:
-        st.session_state.visibility = "visible"
-        st.session_state.disabled = False
-    if "generated" not in st.session_state:
-        st.session_state["generated"] = []
-    if "past" not in st.session_state:
-        st.session_state["past"] = []
-    if "query" not in st.session_state:
-        st.session_state["query"] = ""
-    if "query_text" not in st.session_state:
-        st.session_state["query_text"] = ""
-    if "query_error" not in st.session_state:
-        st.session_state["query_error"] = ""
 
 
 def _clear_session() -> None:
@@ -59,7 +35,7 @@ def _clear_text() -> None:
     st.session_state["query_error"] = ""
 
 
-def _set_chat_tab(tab: DeltaGenerator, params: StAppParams) -> None:
+def _set_chat_tab(tab: DeltaGenerator) -> None:
     with tab:
         col1, col2 = st.columns([6, 1], gap="medium")
 
@@ -96,22 +72,24 @@ def _set_chat_tab(tab: DeltaGenerator, params: StAppParams) -> None:
                         placeholder="Type your question here...",
                         on_change=_clear_text,
                     )
-                    logger.info("Question: %s", input_text)
+                    logging.info("Question: %s", input_text)
 
                     user_input = st.session_state["query"]
                     if user_input:
                         with st.spinner(text="In progress..."):
                             st.session_state.past.append(user_input)
                             try:
-                                res = params.prompt_chain.invoke(
+                                res = st.session_state.llm_chain.invoke(
                                     {"query": PROMPT.format(question=user_input)}
                                 )
                                 st.session_state.generated.append(res)
-                                logger.info("Query: %s", st.session_state["query"])
-                                logger.info("Result: %s", st.session_state["generated"])
+                                logging.info("Query: %s", st.session_state["query"])
+                                logging.info(
+                                    "Result: %s", st.session_state["generated"]
+                                )
                             except Exception as exc:
                                 st.session_state.generated.append(MSG_NO_ANSWER)
-                                logger.error("Error: %s", exc)
+                                logging.error("Error: %s", exc)
                                 st.session_state["query_error"] = exc
 
                     if st.session_state["generated"]:
@@ -141,11 +119,13 @@ def _set_chat_tab(tab: DeltaGenerator, params: StAppParams) -> None:
                                         st.write(st.session_state["past"][i])
 
 
-def _set_details_tab(tab: DeltaGenerator, params: StAppParams) -> None:
+def _set_details_tab(tab: DeltaGenerator) -> None:
     with tab:
         with st.container():
             st.markdown("### LLM Details")
-            st.markdown(f"Foundational Model: {_get_model_md(params)}")
+            st.markdown(
+                f"Foundational Model: {_get_model_md(st.session_state.llm_chain)}"
+            )
 
             pos = len(st.session_state["generated"]) - 1
             if pos >= 0 and st.session_state["generated"][pos] != MSG_NO_ANSWER:
@@ -178,12 +158,68 @@ def _set_details_tab(tab: DeltaGenerator, params: StAppParams) -> None:
             st.code(st.session_state["query_error"], language="text")
 
 
-def _set_secrets_tab(tab: DeltaGenerator) -> None: ...
+def _set_secrets_tab(tab: DeltaGenerator) -> None:
+    with tab:
+        with st.container():
+            st.markdown("### Secrets")
+
+            # Session ID
+            st.markdown("#### Session ID")
+            st.code(st.session_state.session_id, language="text")
+
+            # Database credentials
+            st.markdown("#### PostgreSQL credentials")
+            if st.session_state.db_creds is None:
+                st.markdown(
+                    "No database credentials found. Please check your Vault configuration."
+                )
+            else:
+                creds_container = st.empty()
+                while st.session_state.db_creds.is_running:
+                    creds_container.empty()
+                    with creds_container:
+                        if st.session_state.db_creds.credentials is None:
+                            st.markdown(
+                                "No database credentials found. Please check your Vault configuration."
+                            )
+                        else:
+                            st.code(
+                                language="json",
+                                body=json.dumps(
+                                    {
+                                        "lease_id": st.session_state.db_creds.lease_id,
+                                        "lease_duration": st.session_state.db_creds.lease_duration,
+                                        "lease_expiration": st.session_state.db_creds.lease_expiration,
+                                        "username": st.session_state.db_creds.credentials[
+                                            "username"
+                                        ],
+                                        "password": _redact_string(
+                                            st.session_state.db_creds.credentials[
+                                                "password"
+                                            ]
+                                        ),
+                                    },
+                                    indent=4,
+                                ),
+                            )
+                    time.sleep(st.session_state.db_creds.next_renew_interval())
 
 
-def _get_model_md(params: StAppParams) -> str:
-    if params.prompt_chain.llm_chain is None:
+def _get_model_md(p) -> str:
+    if st.session_state.llm_chain is None:
         return "None"
-    if isinstance(params.prompt_chain.llm_chain.llm, ChatOpenAI):
-        return f"**OpenAI `{params.prompt_chain.llm_chain.llm.model_name}`**"
+    if isinstance(st.session_state.llm_chain.llm_chain.llm, ChatOpenAI):
+        return f"`openai {st.session_state.llm_chain.llm_chain.llm.model_name}`"
     return "Unknown"
+
+
+def _redact_string(str: str, show_chars: int = 5, redact_char: str = "*") -> str:
+    """
+    Redact all but the first and last `show_chars` characters of a string.
+    """
+    if (
+        len(str) <= 2 * show_chars
+    ):  # If the string is too short to redact, return it as is
+        return str
+
+    return str[:show_chars] + redact_char * (len(str) - show_chars)
