@@ -1,4 +1,4 @@
-.PHONY: build-wheel build-container build
+.PHONY: build
 
 build-wheel:
 	rm -rf dist \
@@ -7,4 +7,7 @@ build-wheel:
 build-container:
 	docker build -t langchain-vault-demo:latest -f Containerfile .
 
-build: build-wheel build-container
+build-psql:
+	docker build -t langchain-vault-demo-psql:latest -f postgres/Containerfile postgres
+
+build: build-wheel build-container build-psql
