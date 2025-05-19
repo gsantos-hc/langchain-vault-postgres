@@ -12,8 +12,8 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
 COPY dist/*.whl /tmp/
 
 RUN set -ex \
-    && groupadd --system --gid 1001 demoapp \
-    && useradd --system --uid 1001 --gid 1001 --create-home demoapp \
+    && groupadd --system --gid 1000 demoapp \
+    && useradd --system --uid 1000 --gid 1000 --create-home demoapp \
     && apt-get update \
     && apt-get upgrade -y \
     && pip install $(ls -1t /tmp/*.whl | head -1) -U \
