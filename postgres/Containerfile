@@ -1,0 +1,3 @@
+FROM postgres:17 AS build
+
+COPY moma-collection-dbdump.sql.gz /docker-entrypoint-initdb.d/
