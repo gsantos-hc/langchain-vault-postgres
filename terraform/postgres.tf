@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MIT
+
 # PostgreSQL Database ------------------------------------------------------------------
 resource "kubernetes_service_v1" "psql" {
   metadata {

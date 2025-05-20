@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MIT
+
 resource "vault_kubernetes_auth_backend_role" "vault_nlq_demo" {
   backend                          = var.vault_k8s_auth_backend
   role_name                        = var.vault_k8s_auth_role

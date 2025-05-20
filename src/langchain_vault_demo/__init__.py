@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MIT
+
 MSG_NO_ANSWER = "Sorry, I could not find the answer to your question."
 PROMPT = """Given this natural language question:
 {question}

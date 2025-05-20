@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MIT
+
 variable "kube_namespace" {
   description = "Name of the Kubernetes namespace in which to deploy the demo resources."
   type        = string
