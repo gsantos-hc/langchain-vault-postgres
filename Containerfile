@@ -9,18 +9,19 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
-COPY dist/*.whl /tmp/
-
 RUN set -ex \
     && groupadd --system --gid 1000 demoapp \
     && useradd --system --uid 1000 --gid 1000 --create-home demoapp \
     && apt-get update \
     && apt-get upgrade -y \
-    && pip install $(ls -1t /tmp/*.whl | head -1) -U \
-    && rm -rf /tmp/*.whl \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
+
+COPY dist/*.whl /tmp/
+
+RUN pip install $(ls -1t /tmp/*.whl | head -1) -U \
+    && rm -rf /tmp/*.whl
 
 COPY run.py /home/demoapp/
 
