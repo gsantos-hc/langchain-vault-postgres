@@ -1,14 +1,24 @@
 import datetime
 import logging
+import os
 import threading
 from typing import Any, Callable, Dict, Optional
 
 from hvac import Client
 from requests import Session
 
+SIDECAR_TOKEN_PATH = "/vault/secrets/token"
+
 
 def get_vault_client(vault_addr: str, correlation_id: str) -> Client:
-    client = Client(url=vault_addr)
+    # See if we have a token from a Vault Agent sidecar
+    if os.path.exists(SIDECAR_TOKEN_PATH):
+        with open(SIDECAR_TOKEN_PATH, "r") as f:
+            token = f.read().strip()
+    else:
+        token = os.environ.get("VAULT_TOKEN", "")
+
+    client = Client(url=vault_addr, token=token)
 
     # Make sure that Correlation IDs are passed through
     rs = Session()

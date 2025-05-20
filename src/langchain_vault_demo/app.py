@@ -21,7 +21,6 @@ from .interface import run_streamlit
 from .vault import DynamicDatabaseSecret, get_vault_client
 
 # Demo only, configuration should not be hardcoded
-VAULT_DB_ROLE = "readonly"
 PSQL_URI = "postgresql+psycopg2://{username}:{password}@{host}/{database}"
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -30,7 +29,7 @@ logging.basicConfig(
 
 def main():
     # Check that all required environment variables are set
-    for env_var in ["VAULT_ADDR", "DB_HOST", "DB_NAME"]:
+    for env_var in ["VAULT_ADDR", "VAULT_DB_ROLE", "DB_HOST", "DB_NAME"]:
         if env_var not in os.environ.keys():
             raise ValueError(f"Please set the {env_var} environment variable.")
 
@@ -51,7 +50,8 @@ def main():
         st_context = get_script_run_ctx()
         st.session_state.db_creds = DynamicDatabaseSecret(
             client=vault_client,
-            role_name=VAULT_DB_ROLE,
+            role_name=os.environ["VAULT_DB_ROLE"],
+            mount_point=os.environ.get("VAULT_DB_MOUNT", "database"),
             callback=lambda creds, thread=None: _update_db_client(
                 creds, thread, st_context
             ),
