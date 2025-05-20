@@ -5,7 +5,8 @@ build-wheel:
 	&& uv build --wheel
 
 build-container:
-	docker build -t langchain-vault-demo:latest -f Containerfile .
+	uv export --quiet --no-dev --no-emit-project --output-file requirements.txt \
+	&& docker build -t langchain-vault-demo:latest -f Containerfile .
 
 build-psql:
 	docker build -t langchain-vault-demo-psql:latest -f postgres/Containerfile postgres

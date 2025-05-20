@@ -74,3 +74,8 @@ variable "vault_db_name" {
   description = "Name of the database in Vault."
   type        = string
 }
+
+variable "vault_openai_key_path" {
+  description = "API path to the OpenAI API Key in Vault."
+  type        = string
+}

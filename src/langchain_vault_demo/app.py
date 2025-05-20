@@ -21,6 +21,7 @@ from .interface import run_streamlit
 from .vault import DynamicDatabaseSecret, get_vault_client
 
 # Demo only, configuration should not be hardcoded
+VAULT_AGENT_OPENAI_KEY_PATH = "/vault/secrets/openai-token"
 PSQL_URI = "postgresql+psycopg2://{username}:{password}@{host}/{database}"
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -122,9 +123,17 @@ def _update_db_client(
 
 def _get_llm() -> BaseLanguageModel:
     if "OPENAI_API_KEY" not in os.environ or len(os.environ["OPENAI_API_KEY"]) == 0:
-        raise ValueError(
-            "Please set the OPENAI_API_KEY environment variable to your OpenAI API key."
-        )
+        if os.path.isfile(VAULT_AGENT_OPENAI_KEY_PATH):
+            try:
+                with open(VAULT_AGENT_OPENAI_KEY_PATH, "r") as f:
+                    os.environ["OPENAI_API_KEY"] = f.read().strip()
+            except Exception:
+                logging.exception("Could not read OpenAI API key from file.")
+                raise
+        else:
+            raise ValueError(
+                "Please set the OPENAI_API_KEY environment variable to your OpenAI API key."
+            )
 
     openai = ChatOpenAI(model="gpt-4", temperature=0.3, verbose=True)
     set_llm_cache(SQLiteCache("openai_cache.db"))

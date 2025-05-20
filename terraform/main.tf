@@ -74,6 +74,14 @@ resource "kubernetes_deployment_v1" "vault_nlq_demo" {
           "vault.hashicorp.com/agent-inject-token"       = "true"
           "vault.hashicorp.com/agent-revoke-on-shutdown" = "true"
           "vault.hashicorp.com/role"                     = vault_kubernetes_auth_backend_role.vault_nlq_demo.role_name
+
+          # OpenAI API Key
+          "vault.hashicorp.com/agent-inject-secret-openai-token"   = var.vault_openai_key_path
+          "vault.hashicorp.com/agent-inject-template-openai-token" = <<EOT
+            {{- with secret "${var.vault_openai_key_path}" -}}
+              {{- .Data.data.api_key }}
+            {{- end -}}
+          EOT
         }
       }
 
