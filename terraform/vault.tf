@@ -18,6 +18,12 @@ data "vault_policy_document" "vault_nlq_demo" {
     path         = "${var.vault_db_mount}/creds/${var.vault_db_role}"
     capabilities = ["read"]
   }
+
+  rule {
+    description  = "Read the OpenAI API Key"
+    path         = var.vault_openai_key_path
+    capabilities = ["read"]
+  }
 }
 
 resource "vault_database_secret_backend_role" "vault_nlq_demo" {
