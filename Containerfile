@@ -9,14 +9,18 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
+COPY requirements.txt /tmp/
+
 RUN set -ex \
     && groupadd --system --gid 1000 demoapp \
     && useradd --system --uid 1000 --gid 1000 --create-home demoapp \
     && apt-get update \
     && apt-get upgrade -y \
+    && pip install --no-cache-dir -r /tmp/requirements.txt \
     && apt-get autoremove -y \
     && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/requirements.txt
 
 COPY dist/*.whl /tmp/
 
